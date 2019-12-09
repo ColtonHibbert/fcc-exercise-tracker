@@ -3,7 +3,7 @@ const app = express()
 const bodyParser = require('body-parser')
 const knex = require('knex');
 
-const cors = require('cors')
+const cors = require('cors');
 
 //const mongoose = require('mongoose')
 //mongoose.connect(process.env.MLAB_URI || 'mongodb://localhost/exercise-track' )
@@ -14,6 +14,8 @@ const db = knex({
   client: "pg",
   connection: {
     host: '127.0.0.1',
+    user: 'postgres',
+    password: 'Datahero45!',
     database: 'fccexercisetracker'
   }
 })
@@ -51,11 +53,87 @@ app.get('/', (req, res) => {
 //     .send(errMessage)
 // })
 
-app.post("/api/exercise/user", function (req, res) {
+app.post("/api/exercise/new-user", function (req, res) {
   console.log("new-user was pinged")
   const username = req.body.username
   console.log(username);
-  
+  db.transaction(trx => {
+    trx('users')
+    .returning("*")
+    .insert({
+      username: username
+    })
+    .then(data => {
+      res.json({username: data[0].username, _id: data[0]._id })
+    })
+    .then(trx.commit)
+    .catch(err => {
+      trx.rollback
+      console.log(err, "error adding new user")
+    })
+  }).catch(err => {
+    console.log(err)
+  })
+})
+
+app.get("/api/exercise/users", (req, res) => {
+  db.select("_id", "username").from('users')
+  .returning("_id", "username")
+  .then(data => {
+    console.log(data)
+    res.json(data)
+  })
+})
+
+app.post("/api/exercise/add", (req, res) => {
+  const userId = req.body.userId;
+  const description = req.body.description;
+  const duration = req.body.duration;
+  const date = req.body.date;
+  let username = "";
+  db.transaction(trx => {
+    trx("exercises")
+    .returning("*")
+    .insert({
+      users_id: userId,
+      description: description,
+      duration: duration,
+      date: date
+    })
+    .then(data => {
+    
+      db.transaction(trx => {
+          trx("users").where("_id", "=", userId)
+          .returning("username")
+          .increment('count', 1)
+          .catch(err => {
+            console.log(err)
+          })
+        }
+      )
+
+      db.transaction(trx => {
+          trx("users").select("username")
+          .where("_id", "=", userId)
+          .then(userData => {
+            console.log(userData[0].username)
+            username = userData[0].username
+          })
+        }
+      )
+
+
+      console.log("here is the username", username)
+      res.json({
+        "username": username,
+        "description": data[0].description,
+        "duration": data[0].duration,
+        "_id": data[0].users_id,
+        "date": data[0].date
+      })
+      
+    })
+  })
 })
 
 
