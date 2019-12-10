@@ -89,7 +89,33 @@ app.post("/api/exercise/add", (req, res) => {
   const userId = req.body.userId;
   const description = req.body.description;
   const duration = req.body.duration;
-  const date = req.body.date;
+  let date = req.body.date;
+  console.log("here is the date of req.body", date)
+  console.log(typeof date)
+
+  if(date) {
+    date = new Date(date).toString();
+    console.log(date)
+    const dateArray = date.split(" ");
+    const dateOutputStringArray = [];
+    for (let i = 0; i < 4; i++) {
+      dateOutputStringArray.push(dateArray[i])
+    }
+    date = dateOutputStringArray.join(" ");
+    console.log(date);
+  } else if (date !== true) {
+    date = new Date().toString();
+    const dateArray = date.split(" ");
+    const dateOutputStringArray = [];
+    for (let i = 0; i < 4; i++) {
+      dateOutputStringArray.push(dateArray[i]);
+    }
+    date = dateOutputStringArray.join(" ");
+    console.log(date, "inside not true statement");
+  }
+  
+  console.log(date,"before the sql")
+
   let username = "";
   db.transaction(trx => {
     trx("exercises")
@@ -101,29 +127,32 @@ app.post("/api/exercise/add", (req, res) => {
       date: date
     })
     .then(data => {
-    
-      db.transaction(trx => {
-          trx("users").where("_id", "=", userId)
-          .returning("username")
-          .increment('count', 1)
-          .catch(err => {
-            console.log(err)
-          })
-        }
-      )
+     
+        await db.transaction(trx => {
+            trx("users").where("_id", "=", userId)
+            .returning("username")
+            .increment('count', 1)
+            .catch(err => {
+              console.log(err)
+            })
+          }
+        )
 
-      db.transaction(trx => {
-          trx("users").select("username")
-          .where("_id", "=", userId)
-          .then(userData => {
-            console.log(userData[0].username)
-            username = userData[0].username
-          })
-        }
-      )
+        await db.transaction(trx => {
+            trx("users").select("username")
+            .where("_id", "=", userId)
+            .then(userData => {
+              console.log(userData[0].username)
+              username = userData[0].username
+            })
+          }
+        ).then( () => {
 
-
-      console.log("here is the username", username)
+        })
+        
+     
+      
+      console.log("here is the username after transaction calls", username)
       res.json({
         "username": username,
         "description": data[0].description,
