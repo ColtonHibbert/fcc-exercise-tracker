@@ -19,6 +19,7 @@ const db = knex({
     database: 'fccexercisetracker'
   }
 })
+
 app.use(bodyParser.urlencoded({extended: false}))
 app.use(bodyParser.json())
 app.use(express.urlencoded())
@@ -127,40 +128,47 @@ app.post("/api/exercise/add", (req, res) => {
       date: date
     })
     .then(data => {
-     
-        await db.transaction(trx => {
-            trx("users").where("_id", "=", userId)
-            .returning("username")
-            .increment('count', 1)
-            .catch(err => {
-              console.log(err)
-            })
-          }
-        )
-
-        await db.transaction(trx => {
-            trx("users").select("username")
-            .where("_id", "=", userId)
-            .then(userData => {
-              console.log(userData[0].username)
-              username = userData[0].username
-            })
-          }
-        ).then( () => {
-
-        })
+          db.transaction(trx => {
+              trx("users").where("_id", "=", userId)
+              .returning("username")
+              .increment('count', 1)
+              .then(trx.commit)
+              .catch(err => {
+                trx.rollback
+                console.log(err)
+              })
+            }
+          ).catch(err => {
+            console.log(err)
+          })
+  
+          db.transaction(trx => {
+              trx("users").select("username")
+              .where("_id", "=", userId)
+              .then(userData => {
+                console.log(userData[0].username)
+                return userData[0].username
+              })
+            }
+          ).catch(err => {
+            console.log(err)
+          })
+          
+        res.json({
+            "username": username,
+            "description": data[0].description,
+            "duration": data[0].duration,
+            "_id": data[0].users_id,
+            "date": data[0].date
+          })
         
-     
-      
       console.log("here is the username after transaction calls", username)
-      res.json({
-        "username": username,
-        "description": data[0].description,
-        "duration": data[0].duration,
-        "_id": data[0].users_id,
-        "date": data[0].date
-      })
       
+    })
+    .then(trx.commit)
+    .catch(err => {
+      trx.rollback
+      console.log(err)
     })
   })
 })
