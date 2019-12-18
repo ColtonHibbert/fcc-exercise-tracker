@@ -94,11 +94,18 @@ app.post("/api/exercise/add", async (req, res) => {
   const userId = parseInt(req.body.userId);
   const description = req.body.description;
   const duration = parseInt(req.body.duration);
-  const date = req.body.date;
+  let date = req.body.date;
   console.log("here is the date of req.body", date)
   console.log("here is type of userId", typeof userId)
   console.log("here is the type of duration", typeof duration)
   console.log(typeof date)
+  if(date) {
+    date = new Date(date)
+    console.log("initial date converted", date)
+  } else if(date != true) {
+    date = new Date()
+    console.log("todays date", date)
+  }
 
   // if(date) {
   //   date = new Date(date).toString();
@@ -178,12 +185,22 @@ app.post("/api/exercise/add", async (req, res) => {
           console.log(b, "here is b")
 
         console.log("this runs before res.json")
+        const resDate = (() => {
+            console.log(data[0])
+            const dateArray = data[0].date.toString().split(" ");
+            const dateOutputStringArray = [];
+            for (let i = 0; i < 4; i++) {
+              dateOutputStringArray.push(dateArray[i]);
+            }
+            const shortenedDate = dateOutputStringArray.join(" ");
+            return shortenedDate
+        })()
         res.json({
           "username": username,
           "description": data[0].description,
           "duration": data[0].duration,
           "_id": data[0].users_id,
-          "date": data[0].date
+          "date": resDate
         })
       //})()
       console.log("here is the username after transaction calls", username)
@@ -201,54 +218,57 @@ app.post("/api/exercise/add", async (req, res) => {
 app.get('/api/exercise/log', async (req, res) => {
   
   const userId = Number(req.query.userId);
-  const from = req.query.from;
-  const to = req.query.to;
-  const limit = parseInt(req.query.limit);
+  const from = ((fromArg) => {
+    if (fromArg) {
+      return new Date(fromArg);
+    } else {
+      return fromArg
+    }
+  })(req.query.from)
+
+  const to = ((toArg) => {
+    if (toArg) {
+      return new Date(toArg);
+    } else {
+      return toArg
+    }
+  })(req.query.to)
+
+  const limit = ((limitArg) => {
+    if(limitArg) {
+      return parseInt(req.query.limit);
+    } {
+      return limitArg
+    }
+  })(req.query.limit)
+  
+  // check three queries
   // 
-  // execute queries
-  const fromQuery = () => {
-    if(from) {
-      db.transaction(trx => {
-        trx('exercises')
-        .
-      })
-    }
+  // const fromQuery = () => {
+  //   if(from) {
+  //     db.transaction(trx => {
+  //       trx('exercises')
+  //       .
+  //     })
+  //   }
+  // }
+  
+
+
+  function convertDate(date) {
+    if(date) {
+      date = new Date(date).toString();
+      console.log(date)
+      const dateArray = date.split(" ");
+      const dateOutputStringArray = [];
+      for (let i = 0; i < 4; i++) {
+        dateOutputStringArray.push(dateArray[i])
+      }
+      date = dateOutputStringArray.join(" ");
+      console.log(date);
+      return date
+    } 
   }
-  // 
-
-
-
-  function checkFromToLimit(from, to, limit) {
-    let optionalObject = {};
-    function convertDate(date) {
-      if(date) {
-        date = new Date(date).toString();
-        console.log(date)
-        const dateArray = date.split(" ");
-        const dateOutputStringArray = [];
-        for (let i = 0; i < 4; i++) {
-          dateOutputStringArray.push(dateArray[i])
-        }
-        date = dateOutputStringArray.join(" ");
-        console.log(date);
-        return date
-      } 
-    }
-
-    if(from) {
-      optionalObject.from = convertDate(from);
-    }
-    if(to) {
-      optionalObject.to = convertDate(to);
-    }
-    if(limit) {
-      optionalObject.limit = limit;
-    }
-    console.log(optionalObject);
-    return optionalObject;
-  }
-
-
 
 
   console.log(userId)
