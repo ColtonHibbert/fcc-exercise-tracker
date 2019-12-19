@@ -86,10 +86,6 @@ app.get("/api/exercise/users", (req, res) => {
   })
 })
 
-//fix date, 
-// if no date create new format yyyy-mm-dd 
-// do date conversion once I get response back from db,
-// I can use async await, same for with the from to query building 
 app.post("/api/exercise/add", async (req, res) => {
   const userId = parseInt(req.body.userId);
   const description = req.body.description;
@@ -106,27 +102,6 @@ app.post("/api/exercise/add", async (req, res) => {
     date = new Date()
     console.log("todays date", date)
   }
-
-  // if(date) {
-  //   date = new Date(date).toString();
-  //   console.log(date)
-  //   const dateArray = date.split(" ");
-  //   const dateOutputStringArray = [];
-  //   for (let i = 0; i < 4; i++) {
-  //     dateOutputStringArray.push(dateArray[i])
-  //   }
-  //   date = dateOutputStringArray.join(" ");
-  //   console.log(date);
-  // } else if (date !== true) {
-  //   date = new Date().toString();
-  //   const dateArray = date.split(" ");
-  //   const dateOutputStringArray = [];
-  //   for (let i = 0; i < 4; i++) {
-  //     dateOutputStringArray.push(dateArray[i]);
-  //   }
-  //   date = dateOutputStringArray.join(" ");
-  //   console.log(date, "inside not true statement");
-  // }
   
   console.log(date,"before the sql")
   console.log(typeof userId, "here is the userId type")
@@ -156,15 +131,6 @@ app.post("/api/exercise/add", async (req, res) => {
           console.log(err)
           })
           console.log(a, "here is a")
-          
-          // const a = trx("users")
-          //   .where("_id", "=", userId)
-          //   .increment('count', 1)
-          //   .returning('count')
-          //   .catch(err => {
-          //     console.log(err)
-          //   })
-          // console.log(a, "here is a")
 
           const b = await db.transaction(trx => {
             console.log("username ran")
@@ -241,35 +207,16 @@ app.get('/api/exercise/log', async (req, res) => {
       return limitArg
     }
   })(req.query.limit)
-  
-  // check three queries
-  // 
-  // const fromQuery = () => {
-  //   if(from) {
-  //     db.transaction(trx => {
-  //       trx('exercises')
-  //       .
-  //     })
-  //   }
-  // }
-  
 
-
-  function convertDate(date) {
-    if(date) {
-      date = new Date(date).toString();
-      console.log(date)
-      const dateArray = date.split(" ");
-      const dateOutputStringArray = [];
+  function splitDate(date) {
+    const stringDate = date.toString();
+    const dateArray = stringDate.split(" ");
+    let dateOutputStringArray = [];
       for (let i = 0; i < 4; i++) {
         dateOutputStringArray.push(dateArray[i])
       }
-      date = dateOutputStringArray.join(" ");
-      console.log(date);
-      return date
-    } 
+    return dateOutputStringArray.join(" ");
   }
-
 
   console.log(userId)
   const user = await db.transaction(trx => {
@@ -284,23 +231,76 @@ app.get('/api/exercise/log', async (req, res) => {
   console.log(user, "user")
 
   const exerciseArray = await db.transaction(trx => {
-    trx("exercises")
-    .select("id", "description", "duration", "date")
-    .where("users_id", "=", userId)
-    .returning("id", "description", "duration", "date")
+    const exerciseArrayQueryBuilder = trx("exercises")
+    .select("description", "duration", "date")
+    .where("users_id", "=", userId);
+
+    if(from) {
+      exerciseArrayQueryBuilder.andWhere("date", ">=", from)
+    }
+    if(to) {
+      exerciseArrayQueryBuilder.andWhere("date", "<=", to)
+    }
+    if(limit) {
+      exerciseArrayQueryBuilder.limit(limit)
+    }
+    
+    exerciseArrayQueryBuilder.returning("description", "duration", "date")
     .then(trx.commit)
     .catch(err => {
       console.log(err)
     })
   })
   console.log(exerciseArray, "exerciseArray")
-
-  res.json({
-    _id: user[0]._id,
-    username: user[0].username,
-    count: user[0].count,
-    log: exerciseArray
-  })
+  const exerciseArrayResponse = ((exerciseArray) => {
+    let responseArray = exerciseArray;
+      for(let i = 0; i < responseArray.length; i++) {
+        
+        console.log(splitDate(responseArray[i].date))
+        responseArray[i].date = splitDate(responseArray[i].date)
+    }
+    return responseArray;
+  })(exerciseArray)
+  if(from && to) {
+    res.json({
+      _id: user[0]._id,
+      username: user[0].username,
+      from: splitDate(from),
+      to: splitDate(to),
+      count: user[0].count,
+      log: exerciseArrayResponse
+    })
+    return
+  }
+  if(from) {
+    res.json({
+      _id: user[0]._id,
+      username: user[0].username,
+      from: splitDate(from),
+      count: user[0].count,
+      log: exerciseArrayResponse
+    })
+    return
+  }
+  if(to) {
+    res.json({
+      _id: user[0]._id,
+      username: user[0].username,
+      to: splitDate(to),
+      count: user[0].count,
+      log: exerciseArrayResponse
+    })
+    return
+  }
+  if(from !== true && to !== true) {
+    res.json({
+      _id: user[0]._id,
+      username: user[0].username,
+      count: user[0].count,
+      log: exerciseArrayResponse
+    })
+  }
+ 
 })
 
 
